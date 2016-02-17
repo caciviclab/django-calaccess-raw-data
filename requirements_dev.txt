@@ -14,5 +14,4 @@ tox
 clint
 csvkit
 subsample
-django-postgres-copy
 datpy
