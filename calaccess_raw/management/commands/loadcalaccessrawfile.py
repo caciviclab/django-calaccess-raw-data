@@ -4,7 +4,6 @@ from django.apps import apps
 from csvkit import CSVKitReader
 from django.conf import settings
 from optparse import make_option
-from postgres_copy import CopyMapping
 from django.db import connections, router
 from calaccess_raw.management.commands import CalAccessCommand
 from django.core.management.base import LabelCommand, CommandError
@@ -83,15 +82,10 @@ class Command(CalAccessCommand, LabelCommand):
 
         if engine == 'django.db.backends.mysql':
             self.load_mysql(model, csv_path)
-        elif engine in (
-            'django.db.backends.postgresql_psycopg2'
-            'django.contrib.gis.db.backends.postgis'
-        ):
-            self.load_postgresql(model, csv_path)
         else:
             self.failure("Sorry your database engine is unsupported")
             raise CommandError(
-                "Only MySQL and PostgresSQL backends supported."
+                "Only MySQL backend is supported."
             )
 
     def load_dat(self, model, csv_path):
@@ -176,28 +170,6 @@ class Command(CalAccessCommand, LabelCommand):
 
         # Report back on how we did
         self.finish_load_message(cnt, csv_record_cnt)
-
-    def load_postgresql(self, model, csv_path):
-        """
-        Takes a model and a csv_path and loads it into postgresql
-        """
-        # Drop all the records from the target model's real table
-        self.cursor.execute('TRUNCATE TABLE "%s" CASCADE' % (
-            model._meta.db_table
-        ))
-
-        c = CopyMapping(
-            model,
-            csv_path,
-            dict((f.name, f.db_column) for f in model._meta.fields),
-            using=self.database,
-        )
-        c.save(silent=True)
-
-        # Print out the results
-        csv_count = self.get_row_count(csv_path)
-        model_count = model.objects.count()
-        self.finish_load_message(model_count, csv_count)
 
     def get_headers(self, csv_path):
         """
